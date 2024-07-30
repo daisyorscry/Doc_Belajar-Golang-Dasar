@@ -181,11 +181,161 @@ func main() {
 
 }
 
+```
+
+### tipe data map di golang
+```
+package main
+
+import "fmt"
+
+func main() {
+
+	// membuat tipe data map map([type_key] type_value)
+	person := map[string]string{
+		"name":    "Daisy",
+		"address": "your_address",
+		"country": "indonesia",
+	}
+	// mengambil semua data di map
+	fmt.Println(person) //result => map[address:your_address country:indonesia name:Daisy]
+
+	// mengambil salah satu data dari map menggunakan key
+	fmt.Println(person["name"]) // resukt => Daisy
+
+	// mengubah data di map
+	person["name"] = "daisy_update"
+	fmt.Println(person["name"]) // result => daisy_update
+
+	// mengambil panjang data di map
+	fmt.Println(len(person)) // result => 3
+
+	// menghapus data di map menggunakan key
+	delete(person, "name")
+	fmt.Println(person) //result => map[address:your_address country:indonesia]
+
+}
+
+
+```
+
+### if else expression 
+
+```
+package main
+
+import "fmt"
+
+func main() {
+	if true {
+		fmt.Println("this is true")
+	} else if false {
+		fmt.Println("this is false")
+	} else {
+		fmt.Println("unknown")
+	}
+
+}
+
+```
+
+### switch
+
+```
+package main
+
+import "fmt"
+
+func main() {
+
+	learn_golang := true
+
+	switch learn_golang {
+	case true:
+		fmt.Println("this is learn golang")
+	case false:
+		fmt.Println("this is not learn golang")
+	default:
+		fmt.Println("die")
+
+	}
+
+}
+```
+
+### for looping
+```
+package main
+
+import "fmt"
+
+func main() {
+
+	// membuat perulangan dari 0 hingga 100
+	// angka++ adalah increment , artinya menaikkan 1 persatu nilanya
+	// angka-- adalah dicrement , artinya menurunkan 1 persatu nilainya
+	// for define variabel; kondisi; increment || dicrement
+	for angka := 0; angka < 100; angka++ {
+		fmt.Println(angka)
+	}
+
+}
+
+```
+
+### for each
+
+```
+package main
+
+import "fmt"
+
+func main() {
+
+	// for each atau di golang disebutnya for range adalah teknik membaca data di dalam tipe data collection seperti map, slice dan array
+	data := []int{10, 20, 30, 40}
+
+	// misal kalau menggunakan perulangan manual
+	for i := 0; i < len(data); i++ {
+		fmt.Println(data[i])
+	}
+
+	// ini menggunakan for range
+	for keys, values := range data {
+		fmt.Println(keys, "=>", values)
+	}
+}
 
 ```
 
 
+### continue and break
 
+```
+package main
 
+import "fmt"
 
+func main() {
 
+	// ini adalah break digunakan jika kondisi perulanganya sudah terpenuhi dan akan menghentikan perulangannya
+	// perulangan akan terhenti jika menemui angka 8
+	for i := 0; i < 100; i++ {
+		if i == 8 {
+			break
+		}
+		fmt.Println(i)
+	}
+
+	// continue adalah mengskip jika kondisinya terpenuhi dan tetap melakukan perulangan
+	// mencoba mencetak angka ganjil dari 0 hingga 100
+	for i := 0; i < 100; i++ {
+		if i%2 != 0 {
+			continue
+		}
+		fmt.Println(i)
+	}
+
+}
+
+```
