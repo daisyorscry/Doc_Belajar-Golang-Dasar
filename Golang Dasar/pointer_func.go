@@ -29,7 +29,6 @@ func ChanceAddress(address *Address) {
 }
 
 func main() {
-
 	fix_address := Address{"kendari", "sulawesi_tenggara", "indonesia"}
 	ChanceAddress(&fix_address)
 	fmt.Println(fix_address)
