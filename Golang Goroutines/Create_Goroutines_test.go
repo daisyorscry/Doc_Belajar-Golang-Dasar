@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"testing"
 )
@@ -29,19 +28,4 @@ func TestCreateGolangGoroutines(t *testing.T) {
 
 	wg.Wait()
 	fmt.Println("selesai membuat go routines")
-}
-
-func TestGoMaXProc(t *testing.T) {
-	totalCpu := runtime.NumCPU()
-	fmt.Println(totalCpu)
-
-	totalThread := runtime.GOMAXPROCS(8)
-	fmt.Println(totalThread)
-
-	totalThreadd := runtime.GOMAXPROCS(-1)
-	fmt.Println(totalThreadd)
-
-	totolGoroutines := runtime.NumGoroutine()
-	fmt.Println(totolGoroutines)
-
 }

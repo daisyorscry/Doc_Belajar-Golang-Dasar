@@ -17,6 +17,7 @@ type Address struct {
 // func main() {
 
 // 	fix_address := Address{"kendari", "sulawesi_tenggara", "indonesia"}
+// 	fmt.Println(fix_address)
 // 	ChanceAddress(fix_address)
 // 	fmt.Println(fix_address)
 // }
@@ -30,6 +31,7 @@ func ChanceAddress(address *Address) {
 
 func main() {
 	fix_address := Address{"kendari", "sulawesi_tenggara", "indonesia"}
+	fmt.Println(fix_address)
 	ChanceAddress(&fix_address)
 	fmt.Println(fix_address)
 }
