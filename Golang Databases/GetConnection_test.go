@@ -21,7 +21,8 @@ func TestGetConnection(t *testing.T) {
 		log.Fatal("Error loading .env file")
 	}
 
-	// ini adlah contoh kalau connectionnya menggunakan pgx (recomended)
+	// ini adlah contoh kalau connectii adalah contoh kita membuat sebuah connection untuk semua repository yang ada di service
+// file url untuk connection ke database di buat onnya menggunakan pgx (recomended)
 	// ctx := context.Background()
 	// conn, err := pgx.Connect(ctx, os.Getenv("DATABASE_URL"))
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	model "golang_database/Model"
+	"log"
 )
 
 // buat sebuah struct yang isinya sql.db yang nanti akan mengimplementasi interace tadi
@@ -34,27 +35,93 @@ func (r *UserRepository) Insert(ctx context.Context, user model.Users) (model.Us
 	}
 
 	user.Id = int32(id)
-	return user, err
+	return user, nil
 }
 
-func (r *UserRepository) FindAll(ctx context.Context, user model.Users) ([]model.Users, error) {
+func (r *UserRepository) Update(ctx context.Context, user model.Users) (model.Users, error) {
+
+	txOption := sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+		ReadOnly:  false,
+	}
+
+	tx, err := r.DB.BeginTx(ctx, &txOption)
+	if err != nil {
+		return model.Users{}, err
+	}
+
+	defer func() {
+		if err != nil {
+			if rerr := tx.Rollback(); rerr != nil {
+				log.Printf("Rollback error: %v", rerr)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("Commit error: %v", err)
+			}
+		}
+	}()
 
 	// ini adalah sql scriptnya
-	query := "SELECT id,name,nim FROM admin"
+	query := "UPDATE users SET name = $1, nim = $2  RETURNING id"
+
+	// buat sebuah variabel yang nanti akan mengembalikan nilai dari
+	var id int
+
+	// ini adlaah contoh membuat query row contex.
+	// jadi panggil dulu struct yang menyimpan sql.dbnya kemudian masukkan fild apa yang mau di pakai misalaya queryrowcontext
+	err = tx.QueryRowContext(ctx, query, user.Name, user.Nim).Scan(&id)
+	if err != nil {
+		// nah kalau error return struct kosong aja terus kembalikan erronya
+		return model.Users{}, err
+	}
+
+	user.Id = int32(id)
+	return user, nil
+}
+
+func (r *UserRepository) FindAll(ctx context.Context) ([]model.Users, error) {
+
+	txOption := sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+		ReadOnly:  true,
+	}
+
+	tx, err := r.DB.BeginTx(ctx, &txOption)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			if rerr := tx.Rollback(); rerr != nil {
+				log.Printf("Rollback error: %v", rerr)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("Commit error: %v", err)
+			}
+		}
+	}()
+
+	// ini adalah sql scriptnya
+	query := "SELECT id,name,nim FROM users"
 
 	// ini adlaah contoh membuat query row contex
 	// jadi panggil dulu struct yang menyimpan sql.dbnya kemudian masukkan fild apa yang mau di pakai misalaya queryrowcontext
-	rows, err := r.DB.QueryContext(ctx, query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		// nah kalau error return struct kosong aja terus kembalikan erronya
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	// buat sebuah variabel yang nanti akan mengembalikan nilai dari
 	var users []model.Users
 	for rows.Next() {
 		var user model.Users
-		if err := rows.Scan(user.Id, user.Name, user.Nim); err != nil {
+		if err := rows.Scan(&user.Id, &user.Name, &user.Nim); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -68,23 +135,81 @@ func (r *UserRepository) FindAll(ctx context.Context, user model.Users) ([]model
 }
 
 func (r *UserRepository) FindById(ctx context.Context, id int64) (model.Users, error) {
-	query := "SELECT id, name, nim where id = $1"
+
+	txOption := sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+		ReadOnly:  false,
+	}
+
+	tx, err := r.DB.BeginTx(ctx, &txOption)
+	if err != nil {
+		return model.Users{}, err
+	}
+
+	defer func() {
+		if err != nil {
+			if rerr := tx.Rollback(); rerr != nil {
+				log.Printf("Rollback error: %v", rerr)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("Commit error: %v", err)
+			}
+		}
+	}()
+
+	query := "SELECT  id, name, nim FROM users where id = $1"
 
 	var user model.Users
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(&user.Id, user.Name, user.Nim)
+	err = tx.QueryRowContext(ctx, query, id).Scan(&user.Id, &user.Name, &user.Nim)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return model.Users{}, err
 		}
 		return model.Users{}, err
 	}
-	return user, err
+	return user, nil
 }
 
-func (r *UserRepository) Delete(ctx context.Context, id int64) error {
-	query := "DELETE FROM admin where id "
+func (r *UserRepository) Delete(ctx context.Context, id int64) (bool, error) {
+	txOption := sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+		ReadOnly:  false,
+	}
 
-	// var id int64
-	_, err := r.DB.QueryRowContext(ctx, query, id)
-	return err
+	tx, err := r.DB.BeginTx(ctx, &txOption)
+	if err != nil {
+		return false, err
+	}
+
+	defer func() {
+		if err != nil {
+			if rerr := tx.Rollback(); rerr != nil {
+				log.Printf("Rollback error: %v", rerr)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("Commit error: %v", err)
+			}
+		}
+	}()
+
+	query := "DELETE FROM users where id = $1 "
+
+	result, err := tx.ExecContext(ctx, query, id)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	if rowsAffected == 0 {
+		// Jika tidak ada baris yang dihapus, return false
+		return false, nil
+	}
+
+	return true, nil
+
 }
