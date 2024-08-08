@@ -37,9 +37,18 @@ func TestGetConnection(t *testing.T) {
 	// kalau gada error ini akan di eksekusi artinya koneksinya sukses
 	fmt.Println("sukses")
 
+	// ini adalah configurasi connection database golang
+
+	// set minimum connection yang bisa di buat oleh golang
+	// jika connection di tutup conenction ini tetap akan stand bby sebanyak 10 connection
 	conn.SetMaxIdleConns(10)
+
+	// ini adalah configurasi maximal connection yang bisa di buat oleh golang
 	conn.SetMaxOpenConns(1000)
+	// ini adlaah connection timeout, maksudnya seberapa lama connection ini bisa di pakai
 	conn.SetConnMaxIdleTime(time.Minute * 5)
+
+	// ini adalah connection lifetime, berbdeda dengan timeoout connection ini akan tetap ada setelah digunakan tergantung konfigurasi time nyba
 	conn.SetConnMaxLifetime(time.Minute * 60)
 
 }
