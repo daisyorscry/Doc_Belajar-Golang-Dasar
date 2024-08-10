@@ -9,7 +9,7 @@ import (
 type ProductRepository interface {
 	Save(ctx context.Context, tx *sql.Tx, product entity.Product) (entity.Product, error)
 	Update(ctx context.Context, tx *sql.Tx, product entity.Product) (entity.Product, error)
-	Delete(ctx context.Context, tx *sql.Tx, product entity.Product)
+	Delete(ctx context.Context, tx *sql.Tx, product entity.Product) error
 	FindById(ctx context.Context, tx *sql.Tx, productId int) (entity.Product, error)
-	FindAll(ctx context.Context, tx *sql.Tx) []entity.Product
+	FindAll(ctx context.Context, tx *sql.Tx) ([]entity.Product, error)
 }
