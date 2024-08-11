@@ -33,9 +33,7 @@ func (s *ProductServiceImpl) Create(ctx context.Context, request requests.Create
 	if err != nil {
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error beginning transaction")
 	}
-	defer func() {
-		helper.TxHandler(tx, err)
-	}()
+	defer helper.TxHandler(tx, err)
 
 	product := entity.Product{
 		ProductName: request.ProductName,

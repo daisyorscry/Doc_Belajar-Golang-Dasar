@@ -16,12 +16,6 @@ type ProductControllerImpl struct {
 	Service services.ProductService
 }
 
-type JsonResponse struct {
-	Code   int         `json:"code"`
-	Status string      `json:"status"`
-	Data   interface{} `json:"data"`
-}
-
 func (c *ProductControllerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	var request requests.CreateProductRequest
 
