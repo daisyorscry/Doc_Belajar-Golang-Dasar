@@ -44,6 +44,18 @@ func main() {
 		Service: UserService,
 	}
 
+	// Initialize repositories
+	inventoryProductRepo := repository.NewInventoryProductRepository(db)
+	inventoryDetailRepo := repository.NewInventoryDetailRepository(db)
+
+	// Initialize services
+	inventoryProductService := services.NewInventoryProductService(inventoryProductRepo, db)
+	inventoryDetailService := services.NewInventoryDetailService(inventoryDetailRepo, db)
+
+	// Initialize controllers
+	inventoryProductController := controllers.NewInventoryProductController(inventoryProductService)
+	inventoryDetailController := controllers.NewInventoryDetailController(inventoryDetailService)
+
 	// Routes untuk produk
 	r.Route("/api/products", func(r chi.Router) {
 		r.Use(helper.JWTAuthentication) // Gunakan middleware JWT di route ini
@@ -65,6 +77,24 @@ func main() {
 		r.Post("/login", userController.Login)               // Endpoint untuk login
 		r.Post("/registration", userController.Registration) // Endpoint untuk registrasi
 	})
+
+	// Inventory Product routes
+	r.Route("/api/inventory-products", func(r chi.Router) {
+		r.Post("/", inventoryProductController.Create)
+		r.Get("/{id}", inventoryProductController.FindById)
+		r.Get("/", inventoryProductController.FindAll)
+		// r.Put("/inventory-products", inventoryProductController.Update)
+		r.Delete("/{id}", inventoryProductController.Delete)
+
+		// // Inventory Detail routes
+		// r.Post("/inventory-details", inventoryDetailController.Create)
+		// r.Get("/inventory-details/{id}", inventoryDetailController.FindById)
+		// r.Get("/inventory-details/product/{inventory_product_id}", inventoryDetailController.FindAllByProductId)
+		// r.Put("/inventory-details", inventoryDetailController.Update)
+		// r.Delete("/inventory-details/{id}", inventoryDetailController.Delete)
+	})
+
+	r.Post("/api/inventory/stock-change", inventoryDetailController.ChangeStock)
 
 	server := http.Server{
 		Addr:    "localhost:8080",

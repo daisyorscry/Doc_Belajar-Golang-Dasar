@@ -40,16 +40,37 @@ func (r *ProductRepositoryImpl) Delete(ctx context.Context, tx *sql.Tx, product 
 
 	_, err := tx.ExecContext(ctx, SQL, product.Id)
 	if err != nil {
-		return helper.RepositoryErr(err, "deleting product")
+		return helper.RepositoryErr(err, "error deleting product")
 	}
 	return nil
 }
 
 func (r *ProductRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, productId int) (entity.Product, error) {
-	SQL := "SELECT * FROM product WHERE id = $1"
+	SQL := `
+        SELECT 
+			p.id, 
+			p.productname, 
+			p.productdesc, 
+			p.created_at, 
+			u.username 
+        FROM 
+			product p
+        JOIN 
+			users u 
+		ON 
+			p.user_id = u.id
+        WHERE 
+			p.id = $1
+    `
 
 	product := entity.Product{}
-	err := tx.QueryRowContext(ctx, SQL, productId).Scan(&product.Id, &product.ProductName, &product.ProductDesc)
+	err := tx.QueryRowContext(ctx, SQL, productId).Scan(
+		&product.Id,
+		&product.ProductName,
+		&product.ProductDesc,
+		&product.CreatedAt,
+		&product.CreateBy, // assuming `CreatedBy` is added to the `Product` entity
+	)
 	if err != nil {
 		return entity.Product{}, helper.RepositoryErr(err, "error finding product by id")
 	}
@@ -58,7 +79,20 @@ func (r *ProductRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, produc
 }
 
 func (r *ProductRepositoryImpl) FindAll(ctx context.Context, tx *sql.Tx) ([]entity.Product, error) {
-	SQL := "SELECT id, ProductName,ProductDesc from product"
+	SQL := `
+		SELECT 
+			p.id, 
+			p.ProductName, 
+			p.ProductDesc, 
+			u.username,
+			p.created_at
+		FROM 
+			product p 
+		JOIN 
+			users u 
+		ON 
+			p.user_id = u.id
+		`
 
 	result, err := tx.QueryContext(ctx, SQL)
 	if err != nil {
@@ -69,10 +103,18 @@ func (r *ProductRepositoryImpl) FindAll(ctx context.Context, tx *sql.Tx) ([]enti
 	var products []entity.Product
 	for result.Next() {
 		product := entity.Product{}
-		err := result.Scan(&product.Id, &product.ProductName, &product.ProductDesc)
+
+		err := result.Scan(
+			&product.Id,
+			&product.ProductName,
+			&product.ProductDesc,
+			&product.CreateBy,
+			&product.CreatedAt,
+		)
 		if err != nil {
-			return nil, helper.RepositoryErr(err, "error finding all products")
+			return nil, helper.RepositoryErr(err, "error scanning products and users")
 		}
+
 		products = append(products, product)
 	}
 	return products, nil

@@ -7,7 +7,6 @@ type UserRegistrationRequest struct {
 }
 
 type UserUpdateRequest struct {
-	// Id       int    `validate:"required" json:"id"`
 	Username string `json:"username" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6"`

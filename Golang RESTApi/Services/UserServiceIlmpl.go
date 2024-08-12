@@ -121,6 +121,7 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 		return responses.UserResponse{}, helper.ServiceErr(err, "error hashing password")
 	}
 
+	// begin transaction
 	txOption := sql.TxOptions{
 		Isolation: sql.LevelRepeatableRead,
 		ReadOnly:  false,
@@ -132,6 +133,7 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 	}
 	defer helper.TxHandler(tx, err)
 
+	// set request user to entity user
 	user := entity.User{
 		Username:  request.Username,
 		Email:     request.Email,
@@ -140,25 +142,32 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 		UpdatedAt: time.Now(),
 	}
 
+	// send entitiy user to repository
 	user, err = s.UserRepository.Register(ctx, tx, user)
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error during registration")
 	}
 
+	// return response
 	return helper.HandleUserResponse(user), nil
 }
 
+// user update service
 func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdateRequest) (responses.UserResponse, error) {
+
+	// Get the ID data that will be updated in the context value sent from JWT
 	userId, ok := ctx.Value("userId").(int)
 	if !ok {
 		return responses.UserResponse{}, fmt.Errorf("user ID not found in context")
 	}
 
+	// validasi input request
 	err := s.Validate.Struct(request)
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "invalid update request")
 	}
 
+	// begin transaction
 	txOption := sql.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,
@@ -170,11 +179,13 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 	}
 	defer helper.TxHandler(tx, err)
 
+	// send id to repository find by id
 	user, err := s.UserRepository.FindById(ctx, tx, userId)
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "user not found")
 	}
 
+	// set request to entity user
 	if request.Username != "" {
 		user.Username = request.Username
 	}
@@ -183,6 +194,7 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 	}
 	user.UpdatedAt = time.Now()
 
+	// bcrycpt password
 	if request.Password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -191,10 +203,12 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 		user.Password = string(hashedPassword)
 	}
 
+	// sent entity user to repository update
 	updatedUser, err := s.UserRepository.Update(ctx, tx, user)
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error updating user")
 	}
 
+	// return response
 	return helper.HandleUserResponse(updatedUser), nil
 }

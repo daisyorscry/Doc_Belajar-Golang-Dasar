@@ -7,3 +7,8 @@ type User struct {
 	Username, Email, Password string
 	CreatedAt, UpdatedAt      time.Time
 }
+
+type UserProduct struct {
+	Id              int
+	Username, Email string
+}
