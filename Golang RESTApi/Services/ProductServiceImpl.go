@@ -24,12 +24,7 @@ func (s *ProductServiceImpl) Create(ctx context.Context, request requests.Create
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error validating create product request")
 	}
 
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  false,
-	}
-
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -54,12 +49,7 @@ func (s *ProductServiceImpl) Update(ctx context.Context, request requests.Update
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error validating update product request")
 	}
 
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  false,
-	}
-
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -82,12 +72,8 @@ func (s *ProductServiceImpl) Update(ctx context.Context, request requests.Update
 }
 
 func (s *ProductServiceImpl) Delete(ctx context.Context, request int) error {
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  false,
-	}
 
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -107,12 +93,8 @@ func (s *ProductServiceImpl) Delete(ctx context.Context, request int) error {
 }
 
 func (s *ProductServiceImpl) FindById(ctx context.Context, request int) (responses.ProductRespon, error) {
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  true,
-	}
 
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -127,12 +109,8 @@ func (s *ProductServiceImpl) FindById(ctx context.Context, request int) (respons
 }
 
 func (s *ProductServiceImpl) FindAll(ctx context.Context) ([]responses.ProductRespon, error) {
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  true,
-	}
 
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
 		return nil, helper.ServiceErr(err, "error beginning transaction")
 	}

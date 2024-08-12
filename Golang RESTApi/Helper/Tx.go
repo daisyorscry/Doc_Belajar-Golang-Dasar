@@ -18,3 +18,19 @@ func TxHandler(tx *sql.Tx, err error) {
 		}
 	}
 }
+
+func BeginTxHandlerExec() *sql.TxOptions {
+	txOption := &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+	}
+	return txOption
+}
+
+func BeginTxHandlerQuery() *sql.TxOptions {
+	txOption := &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+	}
+	return txOption
+}

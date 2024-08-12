@@ -12,6 +12,4 @@ type UserService interface {
 	FindById(ctx context.Context, id int) (responses.UserResponse, error)
 	FindByUsername(ctx context.Context, username string) (responses.UserResponse, error)
 	Update(ctx context.Context, request requests.UserUpdateRequest) (responses.UserResponse, error)
-	// Logout(ctx context.Context)
-	// Delete(ctx context.Context)
 }
