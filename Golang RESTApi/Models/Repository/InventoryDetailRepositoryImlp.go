@@ -18,7 +18,13 @@ func NewInventoryDetailRepository(db *sql.DB) InventoryDetailRepository {
 }
 
 func (r *InventoryDetailRepositoryImpl) FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error) {
-	SQL := "SELECT id FROM inventory_product WHERE product_id = $1 FOR UPDATE NOWAIT"
+	SQL := `
+		SELECT id 	
+		FROM inventory_product 
+		WHERE product_id = $1 
+		FOR UPDATE
+		`
+
 	var inventoryId int
 	err := tx.QueryRowContext(ctx, SQL, productId).Scan(&inventoryId)
 	if err != nil {
@@ -32,7 +38,7 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 		SELECT id, inventory_id, stock, status, created_at, updated_at
 		FROM inventory_details
 		WHERE inventory_id = $1
-		FOR UPDATE NOWAIT
+		FOR UPDATE
 		`
 
 	var inventoryDetail entity.InventoryDetail

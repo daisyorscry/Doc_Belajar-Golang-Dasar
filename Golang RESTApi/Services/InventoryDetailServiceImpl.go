@@ -23,7 +23,7 @@ func NewInventoryDetailService(repo repository.InventoryDetailRepository, db *sq
 }
 
 func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
-	tx, err := s.DB.BeginTx(ctx, nil)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return helper.ServiceErr(err, "error starting transaction")
 	}
@@ -62,7 +62,7 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 }
 
 func (s *InventoryDetailServiceImpl) FindInventoryDetailById(ctx context.Context, id int) (responses.InventoryDetailResponse, error) {
-	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return responses.InventoryDetailResponse{}, helper.ServiceErr(err, "error begin transaction")
 	}
