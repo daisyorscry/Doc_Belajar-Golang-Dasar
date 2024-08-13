@@ -32,7 +32,7 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 	SQL := `
         SELECT id, inventory_id, stock, status, created_at, updated_at
         FROM inventory_details
-        WHERE inventory_id = $1 FOR UPDATE
+        WHERE inventory_id = $1 
     `
 
 	var inventoryDetail entity.InventoryDetail
