@@ -23,6 +23,7 @@ func NewInventoryDetailService(repo repository.InventoryDetailRepository, db *sq
 func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
+
 	if err != nil {
 		return helper.ServiceErr(err, "error starting transaction")
 	}

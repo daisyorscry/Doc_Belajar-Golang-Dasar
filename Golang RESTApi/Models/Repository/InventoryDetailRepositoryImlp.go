@@ -8,19 +8,18 @@ import (
 	"fmt"
 )
 
-// InventoryDetailRepositoryImpl is the implementation of InventoryDetailRepository.
 type InventoryDetailRepositoryImpl struct {
 	DB *sql.DB
 }
 
-// NewInventoryDetailRepository creates a new InventoryDetailRepository.
 func NewInventoryDetailRepository(db *sql.DB) InventoryDetailRepository {
 	return &InventoryDetailRepositoryImpl{
 		DB: db,
 	}
 }
+
 func (r *InventoryDetailRepositoryImpl) FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error) {
-	SQL := "SELECT id FROM inventory_product WHERE product_id = $1"
+	SQL := "SELECT id FROM inventory_product WHERE product_id = $1 FOR UPDATE"
 	var inventoryId int
 	err := tx.QueryRowContext(ctx, SQL, productId).Scan(&inventoryId)
 	if err != nil {
@@ -33,7 +32,7 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 	SQL := `
         SELECT id, inventory_id, stock, status, created_at, updated_at
         FROM inventory_details
-        WHERE inventory_id = $1
+        WHERE inventory_id = $1 FOR UPDATE
     `
 
 	var inventoryDetail entity.InventoryDetail
@@ -52,27 +51,24 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 }
 
 func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql.Tx, inventoryId int, change int, status string) (int, error) {
-	// Ambil stok saat ini
+
 	var currentStock int
 	SQL := `
         SELECT stock
         FROM inventory_details
-        WHERE inventory_id = $1 AND status = $2
+        WHERE inventory_id = $1 AND status = $2 FOR UPDATE
     `
 	err := tx.QueryRowContext(ctx, SQL, inventoryId, status).Scan(&currentStock)
 	if err != nil {
 		return 0, helper.RepositoryErr(err, "error fetching current stock")
 	}
 
-	// Hitung stok baru setelah perubahan
 	newStock := currentStock + change
 
-	// Jika stok baru negatif, kembalikan error
 	if newStock < 0 {
 		return currentStock, fmt.Errorf("insufficient stock: available stock is %d", currentStock)
 	}
 
-	// Tentukan status baru berdasarkan stok
 	var newStatus string
 	switch {
 	case newStock == 0:
@@ -83,7 +79,6 @@ func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql
 		newStatus = "AVAILABLE"
 	}
 
-	// Update stok dan status jika diperlukan
 	SQL = `
         UPDATE inventory_details
         SET stock = $1, status = $2, updated_at = NOW()
