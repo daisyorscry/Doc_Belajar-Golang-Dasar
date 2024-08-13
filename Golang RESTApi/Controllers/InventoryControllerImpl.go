@@ -63,24 +63,6 @@ func (c *InventoryProductControllerImpl) FindAll(w http.ResponseWriter, r *http.
 
 }
 
-// // Update handles PUT requests to update an existing inventory product.
-// func (c *InventoryProductController) Update(w http.ResponseWriter, r *http.Request) {
-// 	var product entity.InventoryProduct
-// 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	updatedProduct, err := c.Service.Update(r.Context(), product)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	json.NewEncoder(w).Encode(updatedProduct)
-// }
-
-// Delete handles DELETE requests to remove an inventory product by ID.
 func (c *InventoryProductControllerImpl) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
@@ -92,7 +74,5 @@ func (c *InventoryProductControllerImpl) Delete(w http.ResponseWriter, r *http.R
 		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", err.Error())
 		return
 	}
-
-	// helper.WriteJsonResponse(w, http.StatusOK, "OK", products)
 
 }

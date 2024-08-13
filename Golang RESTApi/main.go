@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close() // Pastikan koneksi database ditutup ketika aplikasi berhenti
+	defer db.Close()
 
 	ProductService := &services.ProductServiceImpl{
 		ProductRepository: &repository.ProductRepositoryImpl{},
@@ -56,9 +56,20 @@ func main() {
 	inventoryProductController := controllers.NewInventoryProductController(inventoryProductService)
 	inventoryDetailController := controllers.NewInventoryDetailController(inventoryDetailService)
 
-	// Routes untuk produk
+	// Routes untuk user
+	r.Route("/api/user", func(r chi.Router) {
+		r.Use(helper.JWTAuthentication)
+		r.Put("/update", userController.Update)
+	})
+
+	// Routes untuk autentikasi
+	r.Route("/api/auth", func(r chi.Router) {
+		r.Post("/login", userController.Login)
+		r.Post("/registration", userController.Registration)
+	})
+
 	r.Route("/api/products", func(r chi.Router) {
-		r.Use(helper.JWTAuthentication) // Gunakan middleware JWT di route ini
+		r.Use(helper.JWTAuthentication)
 		r.Post("/", productController.Create)
 		r.Put("/{id}", productController.Update)
 		r.Delete("/{id}", productController.Delete)
@@ -66,35 +77,20 @@ func main() {
 		r.Get("/", productController.FindAll)
 	})
 
-	// Routes untuk user
-	r.Route("/api/user", func(r chi.Router) {
-		r.Use(helper.JWTAuthentication)         // Gunakan middleware JWT di route ini
-		r.Put("/update", userController.Update) // Endpoint untuk memperbarui user
-	})
-
-	// Routes untuk autentikasi
-	r.Route("/api/auth", func(r chi.Router) {
-		r.Post("/login", userController.Login)               // Endpoint untuk login
-		r.Post("/registration", userController.Registration) // Endpoint untuk registrasi
-	})
-
 	// Inventory Product routes
 	r.Route("/api/inventory-products", func(r chi.Router) {
 		r.Post("/", inventoryProductController.Create)
 		r.Get("/{id}", inventoryProductController.FindById)
 		r.Get("/", inventoryProductController.FindAll)
-		// r.Put("/inventory-products", inventoryProductController.Update)
 		r.Delete("/{id}", inventoryProductController.Delete)
-
-		// // Inventory Detail routes
-		// r.Post("/inventory-details", inventoryDetailController.Create)
-		// r.Get("/inventory-details/{id}", inventoryDetailController.FindById)
-		// r.Get("/inventory-details/product/{inventory_product_id}", inventoryDetailController.FindAllByProductId)
-		// r.Put("/inventory-details", inventoryDetailController.Update)
-		// r.Delete("/inventory-details/{id}", inventoryDetailController.Delete)
 	})
 
-	r.Post("/api/inventory/stock-change", inventoryDetailController.ChangeStock)
+	// Inventory Details routes
+	r.Route("/api/inventory-details", func(r chi.Router) {
+		r.Get("/{id}", inventoryDetailController.FindInventoryDetailById)
+		r.Post("/stock-change", inventoryDetailController.ChangeStock)
+
+	})
 
 	server := http.Server{
 		Addr:    "localhost:8080",

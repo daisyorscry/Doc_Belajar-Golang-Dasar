@@ -22,13 +22,8 @@ type UserServiceImpl struct {
 }
 
 func (s *UserServiceImpl) FindById(ctx context.Context, id int) (responses.UserResponse, error) {
-	// Mulai transaksi database
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-	}
 
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -45,13 +40,8 @@ func (s *UserServiceImpl) FindById(ctx context.Context, id int) (responses.UserR
 }
 
 func (s *UserServiceImpl) FindByUsername(ctx context.Context, username string) (responses.UserResponse, error) {
-	// Mulai transaksi database
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-	}
 
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -74,13 +64,7 @@ func (s *UserServiceImpl) Login(ctx context.Context, request requests.UserLoginR
 		return responses.UserResponse{}, "", helper.ServiceErr(err, "invalid login request")
 	}
 
-	// Mulai transaksi database
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-	}
-
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return responses.UserResponse{}, "", helper.ServiceErr(err, "error beginning transaction")
 	}
@@ -121,19 +105,12 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 		return responses.UserResponse{}, helper.ServiceErr(err, "error hashing password")
 	}
 
-	// begin transaction
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
-		ReadOnly:  false,
-	}
-
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
 	}
 	defer helper.TxHandler(tx, err)
 
-	// set request user to entity user
 	user := entity.User{
 		Username:  request.Username,
 		Email:     request.Email,
@@ -167,13 +144,7 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 		return responses.UserResponse{}, helper.ServiceErr(err, "invalid update request")
 	}
 
-	// begin transaction
-	txOption := sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  false,
-	}
-
-	tx, err := s.DB.BeginTx(ctx, &txOption)
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
 		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
 	}

@@ -21,7 +21,7 @@ func TxHandler(tx *sql.Tx, err error) {
 
 func BeginTxHandlerExec() *sql.TxOptions {
 	txOption := &sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
+		Isolation: sql.LevelReadUncommitted,
 		ReadOnly:  false,
 	}
 	return txOption

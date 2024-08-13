@@ -52,20 +52,17 @@ func (c *UserControllerImpl) Registration(w http.ResponseWriter, r *http.Request
 func (c *UserControllerImpl) Update(w http.ResponseWriter, r *http.Request) {
 	var request requests.UserUpdateRequest
 
-	// Decode JSON request body
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusBadRequest, "error", "Invalid request payload")
 		return
 	}
 
-	// Panggil service untuk melakukan update
 	response, err := c.Service.Update(r.Context(), request)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
 		return
 	}
 
-	// Kirimkan respon sukses
 	helper.WriteJsonResponse(w, http.StatusOK, "success", response)
 }

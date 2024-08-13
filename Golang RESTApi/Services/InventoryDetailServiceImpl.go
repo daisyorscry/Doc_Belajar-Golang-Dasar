@@ -4,8 +4,10 @@ import (
 	helper "RESTApi/Helper"
 	repository "RESTApi/Models/Repository"
 	requests "RESTApi/Models/Requests"
+	responses "RESTApi/Models/Responses"
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type InventoryDetailServiceImpl struct {
@@ -21,9 +23,7 @@ func NewInventoryDetailService(repo repository.InventoryDetailRepository, db *sq
 }
 
 func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
-
-	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
-
+	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return helper.ServiceErr(err, "error starting transaction")
 	}
@@ -34,17 +34,46 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 		return helper.ServiceErr(err, "error fetching inventory by product_id")
 	}
 
-	inventoryDetail, err := s.Repo.FindByInventoryId(ctx, tx, inventoryId)
+	details, err := s.Repo.FindByInventoryId(ctx, tx, inventoryId)
 	if err != nil {
 		return helper.ServiceErr(err, "error fetching inventory details by inventory_id")
 	}
 
-	_, err = s.Repo.UpdateStock(ctx, tx, inventoryId, request.Change, inventoryDetail.Status)
+	details.Stock = details.Stock + request.Change
+	if details.Stock < 0 {
+		return fmt.Errorf("insufficient stock: available stock is %d", details.Stock)
+	}
+
+	switch {
+	case details.Stock == 0:
+		details.Status = "LOST"
+	case details.Stock < 100:
+		details.Status = "BAD"
+	default:
+		details.Status = "AVAILABLE"
+	}
+
+	_, err = s.Repo.UpdateStock(ctx, tx, details)
 	if err != nil {
-		return helper.ServiceErr(err, err.Error())
+		return helper.ServiceErr(err, "error updating stock and status")
 	}
 
 	return nil
+}
+
+func (s *InventoryDetailServiceImpl) FindInventoryDetailById(ctx context.Context, id int) (responses.InventoryDetailResponse, error) {
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
+	if err != nil {
+		return responses.InventoryDetailResponse{}, helper.ServiceErr(err, "error begin transaction")
+	}
+	defer helper.TxHandler(tx, err)
+
+	detail, err := s.Repo.FindByInventoryId(ctx, tx, id)
+	if err != nil {
+		return responses.InventoryDetailResponse{}, err
+	}
+
+	return helper.HandleInventoryDetail(detail), nil
 }
 
 // func (s *InventoryDetailServiceImpl) Create(ctx context.Context, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
@@ -63,21 +92,6 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 // 		return entity.InventoryDetail{}, err
 // 	}
 // 	return newDetail, nil
-// }
-
-// func (s *InventoryDetailServiceImpl) FindById(ctx context.Context, id int) (entity.InventoryDetail, error) {
-// 	tx, err := s.DB.BeginTx(ctx, nil)
-// 	if err != nil {
-// 		return entity.InventoryDetail{}, err
-// 	}
-// 	defer tx.Rollback()
-
-// 	detail, err := s.Repo.FindById(ctx, tx, id)
-// 	if err != nil {
-// 		return entity.InventoryDetail{}, err
-// 	}
-
-// 	return detail, nil
 // }
 
 // func (s *InventoryDetailServiceImpl) FindAllByProductId(ctx context.Context, inventoryProductId int) ([]entity.InventoryDetail, error) {

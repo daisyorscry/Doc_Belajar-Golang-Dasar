@@ -6,6 +6,9 @@ import (
 	services "RESTApi/Services"
 	"encoding/json"
 	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type InventoryDetailControllerImpl struct {
@@ -15,6 +18,10 @@ type InventoryDetailControllerImpl struct {
 func NewInventoryDetailController(s services.InventoryDetailService) *InventoryDetailControllerImpl {
 	return &InventoryDetailControllerImpl{Service: s}
 }
+
+// ******************************CONTROLLER INVENTORY DETAILS********************************************
+
+// ******************************CHANGE STOCK CONTROLLER********************************************
 
 func (c *InventoryDetailControllerImpl) ChangeStock(w http.ResponseWriter, r *http.Request) {
 	var request requests.StockChangeRequest
@@ -31,5 +38,23 @@ func (c *InventoryDetailControllerImpl) ChangeStock(w http.ResponseWriter, r *ht
 	}
 
 	helper.WriteJsonResponse(w, http.StatusOK, "OK", "stock upadte sukses")
+}
+
+// ******************************FIND INVENTORY DETAIL BY ID CONTROLLER********************************************
+
+func (c *InventoryDetailControllerImpl) FindInventoryDetailById(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", "invalid  request payload")
+		return
+	}
+
+	product, err := c.Service.FindInventoryDetailById(r.Context(), id)
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusInternalServerError, "something wring", err.Error())
+
+		return
+	}
+	helper.WriteJsonResponse(w, http.StatusOK, "OK", product)
 
 }

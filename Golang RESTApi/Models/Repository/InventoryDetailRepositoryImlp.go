@@ -5,7 +5,6 @@ import (
 	entity "RESTApi/Models/Entity"
 	"context"
 	"database/sql"
-	"fmt"
 )
 
 type InventoryDetailRepositoryImpl struct {
@@ -19,7 +18,7 @@ func NewInventoryDetailRepository(db *sql.DB) InventoryDetailRepository {
 }
 
 func (r *InventoryDetailRepositoryImpl) FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error) {
-	SQL := "SELECT id FROM inventory_product WHERE product_id = $1 FOR UPDATE"
+	SQL := "SELECT id FROM inventory_product WHERE product_id = $1 FOR UPDATE NOWAIT"
 	var inventoryId int
 	err := tx.QueryRowContext(ctx, SQL, productId).Scan(&inventoryId)
 	if err != nil {
@@ -30,10 +29,11 @@ func (r *InventoryDetailRepositoryImpl) FindInventoryByProductId(ctx context.Con
 
 func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, tx *sql.Tx, inventoryId int) (entity.InventoryDetail, error) {
 	SQL := `
-        SELECT id, inventory_id, stock, status, created_at, updated_at
-        FROM inventory_details
-        WHERE inventory_id = $1 
-    `
+		SELECT id, inventory_id, stock, status, created_at, updated_at
+		FROM inventory_details
+		WHERE inventory_id = $1
+		FOR UPDATE NOWAIT
+		`
 
 	var inventoryDetail entity.InventoryDetail
 	err := tx.QueryRowContext(ctx, SQL, inventoryId).Scan(
@@ -45,54 +45,43 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 		&inventoryDetail.UpdatedAt,
 	)
 	if err != nil {
-		return entity.InventoryDetail{}, err
+		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error get inventory_detail by inventory_id")
 	}
 	return inventoryDetail, nil
 }
 
-func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql.Tx, inventoryId int, change int, status string) (int, error) {
-
-	var currentStock int
+func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
 	SQL := `
-        SELECT stock
-        FROM inventory_details
-        WHERE inventory_id = $1 AND status = $2 FOR UPDATE
-    `
-	err := tx.QueryRowContext(ctx, SQL, inventoryId, status).Scan(&currentStock)
-	if err != nil {
-		return 0, helper.RepositoryErr(err, "error fetching current stock")
-	}
-
-	newStock := currentStock + change
-
-	if newStock < 0 {
-		return currentStock, fmt.Errorf("insufficient stock: available stock is %d", currentStock)
-	}
-
-	var newStatus string
-	switch {
-	case newStock == 0:
-		newStatus = "LOST"
-	case newStock < 100:
-		newStatus = "BAD"
-	default:
-		newStatus = "AVAILABLE"
-	}
-
-	SQL = `
         UPDATE inventory_details
         SET stock = $1, status = $2, updated_at = NOW()
         WHERE inventory_id = $3
-        RETURNING stock
+        RETURNING id
     `
-	err = tx.QueryRowContext(ctx, SQL, newStock, newStatus, inventoryId).Scan(&newStock)
+
+	err := tx.QueryRowContext(ctx, SQL, detail.Stock, detail.Status, detail.InventoryProductId).Scan(&detail.Id)
 	if err != nil {
-		return 0, helper.RepositoryErr(err, "error updating stock and status")
+		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error updating stock and status")
 	}
 
-	return newStock, nil
+	return detail, nil
 }
 
+// func (r *InventoryDetailRepositoryImpl) FetchCurrentStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
+// 	SQL := `
+//         SELECT stock, status
+//         FROM inventory_details
+//         WHERE inventory_id = $1
+// 		RETRUNING id
+//     `
+// 	var currentStock int
+// 	var status string
+
+// 	err := tx.QueryRowContext(ctx, SQL, inventoryId, status).Scan(&currentStock)
+// 	if err != nil {
+// 		return 0, helper.RepositoryErr(err, "error fetching current stock")
+// 	}
+// 	return currentStock, nil
+// }
 // func (r *InventoryDetailRepositoryImpl) Create(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
 // SQL := `
 // INSERT INTO inventory_detail (inventory_product_id, quantity, status, created_at, updated_at)

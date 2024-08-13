@@ -10,8 +10,11 @@ import (
 type InventoryDetailRepository interface {
 	FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error)
 	FindByInventoryId(ctx context.Context, tx *sql.Tx, inventoryId int) (entity.InventoryDetail, error)
-	UpdateStock(ctx context.Context, tx *sql.Tx, inventoryId int, change int, status string) (int, error)
+	UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)
 
+	// UpdateStock(ctx context.Context, tx *sql.Tx, inventoryId int, change int, status string) (int, error)
+	// UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)
+	// FetchCurrentStock(ctx context.Context, tx *sql.Tx, inventoryId int, status string) (int, error)
 	// // Create adds a new inventory detail to the database.
 	// Create(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)
 

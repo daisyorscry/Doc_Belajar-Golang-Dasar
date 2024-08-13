@@ -9,12 +9,3 @@ type InventoryProduct struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
-
-type InventoryDetail struct {
-	Id                 int
-	InventoryProductId int
-	Stock              int
-	Status             string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-}
