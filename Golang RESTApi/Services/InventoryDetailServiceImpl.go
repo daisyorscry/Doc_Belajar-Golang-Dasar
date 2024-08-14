@@ -106,9 +106,6 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 
 	_, err = s.RepoInventoryDetails.UpdateStock(ctx, tx, details)
 	if err != nil {
-		if err.Error() == "optimistic lock error: version mismatch or no rows affected" {
-			return fmt.Errorf("conflict detected: the stock was modified by another transaction")
-		}
 		return helper.ServiceErr(err, "error updating stock and status")
 	}
 
