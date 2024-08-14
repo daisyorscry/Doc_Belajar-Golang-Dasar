@@ -9,6 +9,10 @@ import (
 
 type ProductRepositoryImpl struct{}
 
+func NewProductRepository() ProductRepository {
+	return &ProductRepositoryImpl{}
+}
+
 func (r *ProductRepositoryImpl) Save(ctx context.Context, tx *sql.Tx, product entity.Product) (entity.Product, error) {
 	SQL := "INSERT INTO product (productname, productdesc) VALUES ($1, $2) RETURNING id"
 
@@ -69,7 +73,7 @@ func (r *ProductRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, produc
 		&product.ProductName,
 		&product.ProductDesc,
 		&product.CreatedAt,
-		&product.CreateBy, // assuming `CreatedBy` is added to the `Product` entity
+		&product.CreateBy,
 	)
 	if err != nil {
 		return entity.Product{}, helper.RepositoryErr(err, "error finding product by id")

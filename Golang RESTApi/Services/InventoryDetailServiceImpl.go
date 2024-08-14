@@ -8,19 +8,69 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type InventoryDetailServiceImpl struct {
-	Repo repository.InventoryDetailRepository
-	DB   *sql.DB
+	RepoInventoryDetails repository.InventoryDetailRepository
+	RepoInventoryProduct repository.InventoryProductRepository
+	DB                   *sql.DB
 }
 
-func NewInventoryDetailService(repo repository.InventoryDetailRepository, db *sql.DB) InventoryDetailService {
+func NewInventoryDetailService(repoDetails repository.InventoryDetailRepository, repoInventoryProduct repository.InventoryProductRepository, db *sql.DB) InventoryDetailService {
 	return &InventoryDetailServiceImpl{
-		Repo: repo,
-		DB:   db,
+		RepoInventoryDetails: repoDetails,
+		RepoInventoryProduct: repoInventoryProduct,
+		DB:                   db,
 	}
 }
+
+// **********************PERCOBAAN MAKE LOCKING**************************************************
+
+// func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
+// 	tx, err := s.DB.BeginTx(ctx, nil)
+// 	if err != nil {
+// 		return helper.ServiceErr(err, "error starting transaction")
+// 	}
+// 	defer helper.TxHandler(tx, err)
+
+// 	lockId := request.ProductId // Use productId as lock identifier
+// 	_, err = s.Repo.AcquireAdvisoryLock(ctx, tx, lockId)
+// 	if err != nil {
+// 		return helper.ServiceErr(err, "error acquiring advisory lock")
+// 	}
+
+// 	inventoryId, err := s.Repo.FindInventoryByProductId(ctx, tx, request.ProductId)
+// 	if err != nil {
+// 		return helper.ServiceErr(err, "error fetching inventory by product_id")
+// 	}
+
+// 	details, err := s.Repo.FindByInventoryId(ctx, tx, inventoryId)
+// 	if err != nil {
+// 		return helper.ServiceErr(err, "error fetching inventory details by inventory_id")
+// 	}
+
+// 	details.Stock += request.Change
+// 	if details.Stock < 0 {
+// 		return fmt.Errorf("insufficient stock: available stock is %d", details.Stock)
+// 	}
+
+// 	switch {
+// 	case details.Stock == 0:
+// 		details.Status = "LOST"
+// 	case details.Stock < 100:
+// 		details.Status = "BAD"
+// 	default:
+// 		details.Status = "AVAILABLE"
+// 	}
+
+// 	_, err = s.Repo.UpdateStock(ctx, tx, details)
+// 	if err != nil {
+// 		return helper.ServiceErr(err, "error updating stock and status")
+// 	}
+
+// 	return nil
+// }
 
 func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
@@ -29,12 +79,13 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 	}
 	defer helper.TxHandler(tx, err)
 
-	inventoryId, err := s.Repo.FindInventoryByProductId(ctx, tx, request.ProductId)
+	inventoryId, err := s.RepoInventoryProduct.FindInventoryByProductId(ctx, tx, request.ProductId)
 	if err != nil {
-		return helper.ServiceErr(err, "error fetching inventory by product_id")
+		return helper.ServiceErr(err, "error fetching inventory by product_ids")
 	}
+	time.Sleep(100 * time.Nanosecond)
 
-	details, err := s.Repo.FindByInventoryId(ctx, tx, inventoryId)
+	details, err := s.RepoInventoryDetails.FindByInventoryId(ctx, tx, inventoryId)
 	if err != nil {
 		return helper.ServiceErr(err, "error fetching inventory details by inventory_id")
 	}
@@ -53,8 +104,11 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 		details.Status = "AVAILABLE"
 	}
 
-	_, err = s.Repo.UpdateStock(ctx, tx, details)
+	_, err = s.RepoInventoryDetails.UpdateStock(ctx, tx, details)
 	if err != nil {
+		if err.Error() == "optimistic lock error: version mismatch or no rows affected" {
+			return fmt.Errorf("conflict detected: the stock was modified by another transaction")
+		}
 		return helper.ServiceErr(err, "error updating stock and status")
 	}
 
@@ -68,7 +122,7 @@ func (s *InventoryDetailServiceImpl) FindInventoryDetailById(ctx context.Context
 	}
 	defer helper.TxHandler(tx, err)
 
-	detail, err := s.Repo.FindByInventoryId(ctx, tx, id)
+	detail, err := s.RepoInventoryDetails.FindByInventoryId(ctx, tx, id)
 	if err != nil {
 		return responses.InventoryDetailResponse{}, err
 	}

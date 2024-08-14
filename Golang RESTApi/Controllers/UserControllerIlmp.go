@@ -12,6 +12,10 @@ type UserControllerImpl struct {
 	Service services.UserService
 }
 
+func NewUserController(s services.UserService) *UserControllerImpl {
+	return &UserControllerImpl{Service: s}
+}
+
 func (c *UserControllerImpl) Login(w http.ResponseWriter, r *http.Request) {
 	var request requests.UserLoginRequest
 	err := json.NewDecoder(r.Body).Decode(&request)

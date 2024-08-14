@@ -8,9 +8,10 @@ import (
 
 // InventoryDetailRepository defines the methods for inventory detail data access.
 type InventoryDetailRepository interface {
-	FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error)
+	Create(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)
 	FindByInventoryId(ctx context.Context, tx *sql.Tx, inventoryId int) (entity.InventoryDetail, error)
 	UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)
+	// AcquireAdvisoryLock(ctx context.Context, tx *sql.Tx, lockId int) (bool, error)
 
 	// UpdateStock(ctx context.Context, tx *sql.Tx, inventoryId int, change int, status string) (int, error)
 	// UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error)

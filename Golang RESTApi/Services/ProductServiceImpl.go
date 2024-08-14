@@ -8,14 +8,27 @@ import (
 	responses "RESTApi/Models/Responses"
 	"context"
 	"database/sql"
+	"log"
 
 	"github.com/go-playground/validator/v10"
 )
 
 type ProductServiceImpl struct {
-	ProductRepository repository.ProductRepository
-	DB                *sql.DB
-	Validate          *validator.Validate
+	ProductRepository          repository.ProductRepository
+	InventoryRepository        repository.InventoryProductRepository
+	InventoryDetailsRepository repository.InventoryDetailRepository
+	DB                         *sql.DB
+	Validate                   *validator.Validate
+}
+
+func NewProductService(repositoryProduct repository.ProductRepository, repositoryInventory repository.InventoryProductRepository, repositoryDetails repository.InventoryDetailRepository, db *sql.DB, validate *validator.Validate) ProductService {
+	return &ProductServiceImpl{
+		ProductRepository:          repositoryProduct,
+		InventoryRepository:        repositoryInventory,
+		InventoryDetailsRepository: repositoryDetails,
+		DB:                         db,
+		Validate:                   validate,
+	}
 }
 
 func (s *ProductServiceImpl) Create(ctx context.Context, request requests.CreateProductRequest) (responses.ProductRespon, error) {
@@ -39,6 +52,68 @@ func (s *ProductServiceImpl) Create(ctx context.Context, request requests.Create
 	if err != nil {
 		return responses.ProductRespon{}, helper.ServiceErr(err, "error saving product")
 	}
+
+	return helper.HandleProductResponse(product), nil
+}
+
+func (s *ProductServiceImpl) CreateProductWithInventoryDetails(ctx context.Context, request requests.CreateProductRequest) (responses.ProductRespon, error) {
+	log.Printf("Inserting product: 1")
+
+	err := s.Validate.Struct(request)
+	if err != nil {
+		return responses.ProductRespon{}, helper.ServiceErr(err, "error validating create product request")
+	}
+	log.Printf("Inserting product: 2")
+
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
+	if err != nil {
+		return responses.ProductRespon{}, helper.ServiceErr(err, "error beginning transaction")
+	}
+	defer helper.TxHandler(tx, err)
+	log.Printf("Inserting product: 3")
+
+	product := entity.Product{
+		ProductName: request.ProductName,
+		ProductDesc: request.ProductDesc,
+	}
+	log.Printf("Inserting product: 4")
+
+	product, err = s.ProductRepository.Save(ctx, tx, product)
+	if err != nil {
+		return responses.ProductRespon{}, helper.ServiceErr(err, "error create product")
+	}
+
+	log.Printf("Inserting product: 5")
+
+	inventoryProduct := entity.InventoryProduct{
+		ProductId: int(product.Id),
+		Price:     0.0,
+	}
+
+	log.Printf("Inserting product: 6")
+
+	inventories, err := s.InventoryRepository.Create(ctx, tx, inventoryProduct)
+	if err != nil {
+		return responses.ProductRespon{}, helper.ServiceErr(err, "error  create inventory")
+	}
+
+	log.Printf("Inserting product: 7")
+
+	detail := entity.InventoryDetail{
+		InventoryProductId: inventories.Id,
+		Stock:              0,
+		Status:             "BAD",
+	}
+	log.Printf("Inserting product: 8")
+
+	_, err = s.InventoryDetailsRepository.Create(ctx, tx, detail)
+	log.Printf("Inserting product: 9")
+
+	if err != nil {
+		return responses.ProductRespon{}, helper.ServiceErr(err, "error saving inventory details")
+	}
+
+	log.Printf("Inserting product: 10")
 
 	return helper.HandleProductResponse(product), nil
 }
@@ -122,4 +197,39 @@ func (s *ProductServiceImpl) FindAll(ctx context.Context) ([]responses.ProductRe
 	}
 
 	return helper.HandleProductResponses(products), nil
+}
+
+func (s *ProductServiceImpl) FindProductDetail(ctx context.Context, request int) (responses.ProductDetailRespon, error) {
+	log.Printf("find product: 1")
+
+	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
+	if err != nil {
+		return responses.ProductDetailRespon{}, helper.ServiceErr(err, "error beginning transaction")
+	}
+	defer helper.TxHandler(tx, err)
+
+	log.Printf("find product: 2")
+
+	product, err := s.ProductRepository.FindById(ctx, tx, request)
+	if err != nil {
+		return responses.ProductDetailRespon{}, helper.ServiceErr(err, "error finding product by id")
+	}
+	log.Printf("product id => :", int64(product.Id))
+
+	log.Printf("find product: 3")
+
+	var productid int64 = product.Id
+	inventory, err := s.InventoryRepository.FindInventoryByProductId(ctx, tx, int(productid))
+	if err != nil {
+		return responses.ProductDetailRespon{}, helper.ServiceErr(err, "error finding inventory by id")
+	}
+
+	log.Printf("find product: 4")
+
+	detail, err := s.InventoryDetailsRepository.FindByInventoryId(ctx, tx, inventory)
+	if err != nil {
+		return responses.ProductDetailRespon{}, helper.ServiceErr(err, "error finding inventory_details by id")
+	}
+
+	return helper.HandleProductDetailResponse(product, detail), nil
 }

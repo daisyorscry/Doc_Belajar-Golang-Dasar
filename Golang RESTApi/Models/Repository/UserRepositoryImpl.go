@@ -11,6 +11,10 @@ import (
 type UserRepositoryImpl struct {
 }
 
+func NewUserRepository() UserRepository {
+	return &UserRepositoryImpl{}
+}
+
 func (r *UserRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, userId int) (entity.User, error) {
 	SQL := "SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1"
 

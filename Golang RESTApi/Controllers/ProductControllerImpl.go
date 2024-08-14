@@ -4,7 +4,6 @@ import (
 	helper "RESTApi/Helper"
 	requests "RESTApi/Models/Requests"
 	services "RESTApi/Services"
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -16,6 +15,10 @@ type ProductControllerImpl struct {
 	Service services.ProductService
 }
 
+func NewProductController(s services.ProductService) *ProductControllerImpl {
+	return &ProductControllerImpl{Service: s}
+}
+
 func (c *ProductControllerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	var request requests.CreateProductRequest
 
@@ -25,12 +28,40 @@ func (c *ProductControllerImpl) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := c.Service.Create(context.Background(), request)
+	response, err := c.Service.Create(r.Context(), request)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
 		return
 	}
 
+	helper.WriteJsonResponse(w, http.StatusOK, "success", response)
+}
+
+func (c *ProductControllerImpl) CreateAll(w http.ResponseWriter, r *http.Request) {
+	var request requests.CreateProductRequest
+
+	// Decode JSON request body
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusBadRequest, "fail", "Invalid request payload")
+		return
+	}
+
+	// Validasi data jika diperlukan
+	// err = validateRequest(request)
+	// if err != nil {
+	//     helper.WriteJsonResponse(w, http.StatusBadRequest, "fail", err.Error())
+	//     return
+	// }
+
+	// Call service layer to create product and related details
+	response, err := c.Service.CreateProductWithInventoryDetails(r.Context(), request)
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
+		return
+	}
+
+	// Write successful response
 	helper.WriteJsonResponse(w, http.StatusOK, "success", response)
 }
 
@@ -68,7 +99,7 @@ func (c *ProductControllerImpl) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.Service.Delete(context.Background(), id)
+	err = c.Service.Delete(r.Context(), id)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
 		return
@@ -86,7 +117,7 @@ func (c *ProductControllerImpl) FindById(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	response, err := c.Service.FindById(context.Background(), id)
+	response, err := c.Service.FindById(r.Context(), id)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
 		return
@@ -96,7 +127,24 @@ func (c *ProductControllerImpl) FindById(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *ProductControllerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
-	response, err := c.Service.FindAll(context.Background())
+	response, err := c.Service.FindAll(r.Context())
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
+		return
+	}
+
+	helper.WriteJsonResponse(w, http.StatusOK, "success", response)
+}
+
+func (c *ProductControllerImpl) FindDetailProduct(w http.ResponseWriter, r *http.Request) {
+
+	idParam := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		helper.WriteJsonResponse(w, http.StatusInternalServerError, "Invalid Id", err.Error())
+		return
+	}
+	response, err := c.Service.FindProductDetail(r.Context(), id)
 	if err != nil {
 		helper.WriteJsonResponse(w, http.StatusInternalServerError, "error", err.Error())
 		return

@@ -5,42 +5,42 @@ import (
 	entity "RESTApi/Models/Entity"
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type InventoryDetailRepositoryImpl struct {
-	DB *sql.DB
 }
 
-func NewInventoryDetailRepository(db *sql.DB) InventoryDetailRepository {
-	return &InventoryDetailRepositoryImpl{
-		DB: db,
-	}
+func NewInventoryDetailRepository() InventoryDetailRepository {
+	return &InventoryDetailRepositoryImpl{}
 }
 
-func (r *InventoryDetailRepositoryImpl) FindInventoryByProductId(ctx context.Context, tx *sql.Tx, productId int) (int, error) {
+// ******************CREATE INVENTORY DETAILS*********************************************
+
+func (r *InventoryDetailRepositoryImpl) Create(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
 	SQL := `
-		SELECT id 	
-		FROM inventory_product 
-		WHERE product_id = $1 
-		FOR UPDATE
-		`
-
-	var inventoryId int
-	err := tx.QueryRowContext(ctx, SQL, productId).Scan(&inventoryId)
+	INSERT INTO inventory_details (inventory_id, stock, status, created_at, updated_at)
+	VALUES ($1, $2, $3, NOW(), NOW())
+	RETURNING id
+	`
+	var id int
+	err := tx.QueryRowContext(ctx, SQL, detail.InventoryProductId, detail.Stock, detail.Status).Scan(&id)
 	if err != nil {
-		return 0, helper.RepositoryErr(err, "error fetching inventory by product_id")
+		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error creating inventory detail")
 	}
-	return inventoryId, nil
+	detail.Id = id
+	return detail, nil
 }
+
+// ******************FIND INVENTORY DETAILS BY INVENTORY_ID*********************************************
 
 func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, tx *sql.Tx, inventoryId int) (entity.InventoryDetail, error) {
 	SQL := `
-		SELECT id, inventory_id, stock, status, created_at, updated_at
-		FROM inventory_details
-		WHERE inventory_id = $1
+        SELECT id, inventory_id, stock, status, created_at, updated_at
+        FROM inventory_details
+        WHERE inventory_id = $1
 		FOR UPDATE
-		`
-
+        `
 	var inventoryDetail entity.InventoryDetail
 	err := tx.QueryRowContext(ctx, SQL, inventoryId).Scan(
 		&inventoryDetail.Id,
@@ -56,21 +56,39 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 	return inventoryDetail, nil
 }
 
+// ******************UPDATE STOCK INVENTORY DETAILS BY INVENTORY_ID*********************************************
+
 func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
 	SQL := `
         UPDATE inventory_details
         SET stock = $1, status = $2, updated_at = NOW()
         WHERE inventory_id = $3
-        RETURNING id
-    `
-
-	err := tx.QueryRowContext(ctx, SQL, detail.Stock, detail.Status, detail.InventoryProductId).Scan(&detail.Id)
+        `
+	result, err := tx.ExecContext(ctx, SQL, detail.Stock, detail.Status, detail.InventoryProductId)
 	if err != nil {
 		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error updating stock and status")
 	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error checking rows affected")
+	}
+
+	if rowsAffected == 0 {
+		return entity.InventoryDetail{}, fmt.Errorf("optimistic lock error: version mismatch or no rows affected")
+	}
+
 	return detail, nil
 }
+
+// func (r *InventoryDetailRepositoryImpl) AcquireAdvisoryLock(ctx context.Context, tx *sql.Tx, lockId int) (bool, error) {
+// 	SQL := `SELECT pg_advisory_xact_lock($1)`
+// 	_, err := tx.ExecContext(ctx, SQL, lockId)
+// 	if err != nil {
+// 		return false, err
+// 	}
+// 	return true, nil
+// }
 
 // func (r *InventoryDetailRepositoryImpl) FetchCurrentStock(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
 // 	SQL := `
@@ -88,20 +106,7 @@ func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql
 // 	}
 // 	return currentStock, nil
 // }
-// func (r *InventoryDetailRepositoryImpl) Create(ctx context.Context, tx *sql.Tx, detail entity.InventoryDetail) (entity.InventoryDetail, error) {
-// SQL := `
-// INSERT INTO inventory_detail (inventory_product_id, quantity, status, created_at, updated_at)
-// VALUES ($1, $2, $3, NOW(), NOW())
-// RETURNING id
-// `
-// var id int
-// err := tx.QueryRowContext(ctx, SQL, detail.InventoryProductId, detail.Quantity, detail.Status).Scan(&id)
-// if err != nil {
-// return entity.InventoryDetail{}, helper.RepositoryErr(err, "error creating inventory detail")
-// }
-// detail.Id = id
-// return detail, nil
-// }
+
 //
 // func (r *InventoryDetailRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, id int) (entity.InventoryDetail, error) {
 // SQL := `

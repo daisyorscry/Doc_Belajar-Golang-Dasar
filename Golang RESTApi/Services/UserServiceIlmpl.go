@@ -21,6 +21,14 @@ type UserServiceImpl struct {
 	Validate       *validator.Validate
 }
 
+func NewUserService(repo repository.UserRepository, db *sql.DB, validate *validator.Validate) UserService {
+	return &UserServiceImpl{
+		UserRepository: repo,
+		DB:             db,
+		Validate:       validate,
+	}
+}
+
 func (s *UserServiceImpl) FindById(ctx context.Context, id int) (responses.UserResponse, error) {
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())

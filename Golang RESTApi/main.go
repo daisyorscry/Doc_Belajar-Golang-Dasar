@@ -7,6 +7,7 @@ import (
 	services "RESTApi/Services"
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -24,35 +25,28 @@ func main() {
 	}
 	defer db.Close()
 
-	ProductService := &services.ProductServiceImpl{
-		ProductRepository: &repository.ProductRepositoryImpl{},
-		DB:                db,
-		Validate:          validator.New(),
-	}
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(1000)
+	db.SetConnMaxIdleTime(time.Second * 5)
+	db.SetConnMaxLifetime(time.Minute * 60)
 
-	productController := &controllers.ProductControllerImpl{
-		Service: ProductService,
-	}
-
-	UserService := &services.UserServiceImpl{
-		UserRepository: &repository.UserRepositoryImpl{},
-		DB:             db,
-		Validate:       validator.New(),
-	}
-
-	userController := &controllers.UserControllerImpl{
-		Service: UserService,
-	}
+	validate := validator.New()
 
 	// Initialize repositories
-	inventoryProductRepo := repository.NewInventoryProductRepository(db)
-	inventoryDetailRepo := repository.NewInventoryDetailRepository(db)
+	userRepository := repository.NewUserRepository()
+	productRepository := repository.NewProductRepository()
+	inventoryProductRepo := repository.NewInventoryProductRepository()
+	inventoryDetailRepo := repository.NewInventoryDetailRepository()
 
 	// Initialize services
+	userService := services.NewUserService(userRepository, db, validate)
+	productService := services.NewProductService(productRepository, inventoryProductRepo, inventoryDetailRepo, db, validate)
 	inventoryProductService := services.NewInventoryProductService(inventoryProductRepo, db)
-	inventoryDetailService := services.NewInventoryDetailService(inventoryDetailRepo, db)
+	inventoryDetailService := services.NewInventoryDetailService(inventoryDetailRepo, inventoryProductRepo, db)
 
 	// Initialize controllers
+	userController := controllers.NewUserController(userService)
+	productController := controllers.NewProductController(productService)
 	inventoryProductController := controllers.NewInventoryProductController(inventoryProductService)
 	inventoryDetailController := controllers.NewInventoryDetailController(inventoryDetailService)
 
@@ -71,9 +65,11 @@ func main() {
 	r.Route("/api/products", func(r chi.Router) {
 		r.Use(helper.JWTAuthentication)
 		r.Post("/", productController.Create)
+		r.Post("/details", productController.CreateAll)
 		r.Put("/{id}", productController.Update)
 		r.Delete("/{id}", productController.Delete)
 		r.Get("/{id}", productController.FindById)
+		r.Get("/detail/{id}", productController.FindDetailProduct)
 		r.Get("/", productController.FindAll)
 	})
 
