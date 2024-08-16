@@ -22,7 +22,7 @@ func (r *InventoryProductRepositoryImpl) FindInventoryByProductId(ctx context.Co
 		SELECT id 	
 		FROM inventory_product 
 		WHERE product_id = $1
-		FOR UPDATE
+		FOR UPDATE NOWAIT
 		`
 
 	var inventoryId int

@@ -39,7 +39,7 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
         SELECT id, inventory_id, stock, status, created_at, updated_at
         FROM inventory_details
         WHERE inventory_id = $1
-		FOR UPDATE
+		FOR UPDATE NOWAIT
         `
 	var inventoryDetail entity.InventoryDetail
 	err := tx.QueryRowContext(ctx, SQL, inventoryId).Scan(
