@@ -1,11 +1,10 @@
 package repository
 
 import (
-	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	entity "RESTApi/Models/Entity"
 	"context"
 	"database/sql"
-	"fmt"
 )
 
 type InventoryDetailRepositoryImpl struct {
@@ -26,7 +25,7 @@ func (r *InventoryDetailRepositoryImpl) Create(ctx context.Context, tx *sql.Tx, 
 	var id int
 	err := tx.QueryRowContext(ctx, SQL, detail.InventoryProductId, detail.Stock, detail.Status).Scan(&id)
 	if err != nil {
-		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error creating inventory detail")
+		return entity.InventoryDetail{}, exception.RepositoryErr(err, "failed to create inventory detail", "database_error")
 	}
 	detail.Id = id
 	return detail, nil
@@ -51,7 +50,7 @@ func (r *InventoryDetailRepositoryImpl) FindByInventoryId(ctx context.Context, t
 		&inventoryDetail.UpdatedAt,
 	)
 	if err != nil {
-		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error get inventory_detail by inventory_id")
+		return entity.InventoryDetail{}, exception.RepositoryErr(err, "inventory product detail not found", "not_found")
 	}
 	return inventoryDetail, nil
 }
@@ -64,18 +63,9 @@ func (r *InventoryDetailRepositoryImpl) UpdateStock(ctx context.Context, tx *sql
         SET stock = $1, status = $2, updated_at = NOW()
         WHERE inventory_id = $3
         `
-	result, err := tx.ExecContext(ctx, SQL, detail.Stock, detail.Status, detail.InventoryProductId)
+	_, err := tx.ExecContext(ctx, SQL, detail.Stock, detail.Status, detail.InventoryProductId)
 	if err != nil {
-		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error updating stock and status")
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return entity.InventoryDetail{}, helper.RepositoryErr(err, "error checking rows affected")
-	}
-
-	if rowsAffected == 0 {
-		return entity.InventoryDetail{}, fmt.Errorf("optimistic lock error: version mismatch or no rows affected")
+		return entity.InventoryDetail{}, exception.RepositoryErr(err, "failed updating stock product", "database_error")
 	}
 
 	return detail, nil

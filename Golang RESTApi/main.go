@@ -1,8 +1,9 @@
 package main
 
 import (
+	auth "RESTApi/Auth"
+	config "RESTApi/Config"
 	controllers "RESTApi/Controllers"
-	helper "RESTApi/Helper"
 	repository "RESTApi/Models/Repository"
 	services "RESTApi/Services"
 	"database/sql"
@@ -12,13 +13,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/validator/v10"
-	_ "github.com/lib/pq" // Driver untuk PostgreSQL
+	_ "github.com/lib/pq"
 )
 
 func main() {
+
+	// initialize chii router
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
+	// initial posgres database
 	db, err := sql.Open("postgres", "user=postgres password=123 dbname=belajar_golang sslmode=disable")
 	if err != nil {
 		panic(err)
@@ -30,6 +34,10 @@ func main() {
 	db.SetConnMaxIdleTime(time.Second * 5)
 	db.SetConnMaxLifetime(time.Minute * 60)
 
+	// initialize redis database
+	redisClient := config.NewRedisClient()
+
+	// initialize validator
 	validate := validator.New()
 
 	// Initialize repositories
@@ -40,9 +48,9 @@ func main() {
 
 	// Initialize services
 	userService := services.NewUserService(userRepository, db, validate)
-	productService := services.NewProductService(productRepository, inventoryProductRepo, inventoryDetailRepo, db, validate)
+	productService := services.NewProductService(productRepository, inventoryProductRepo, inventoryDetailRepo, userRepository, db, validate)
 	inventoryProductService := services.NewInventoryProductService(inventoryProductRepo, db)
-	inventoryDetailService := services.NewInventoryDetailService(inventoryDetailRepo, inventoryProductRepo, db)
+	inventoryDetailService := services.NewInventoryDetailService(inventoryDetailRepo, inventoryProductRepo, db, redisClient)
 
 	// Initialize controllers
 	userController := controllers.NewUserController(userService)
@@ -52,7 +60,7 @@ func main() {
 
 	// Routes untuk user
 	r.Route("/api/user", func(r chi.Router) {
-		r.Use(helper.JWTAuthentication)
+		r.Use(auth.Auth)
 		r.Put("/update", userController.Update)
 	})
 
@@ -63,7 +71,7 @@ func main() {
 	})
 
 	r.Route("/api/products", func(r chi.Router) {
-		r.Use(helper.JWTAuthentication)
+		r.Use(auth.Auth)
 		r.Post("/", productController.Create)
 		r.Post("/details", productController.CreateAll)
 		r.Put("/{id}", productController.Update)
@@ -75,6 +83,7 @@ func main() {
 
 	// Inventory Product routes
 	r.Route("/api/inventory-products", func(r chi.Router) {
+		r.Use(auth.Auth)
 		r.Post("/", inventoryProductController.Create)
 		r.Get("/{id}", inventoryProductController.FindById)
 		r.Get("/", inventoryProductController.FindAll)
@@ -83,6 +92,7 @@ func main() {
 
 	// Inventory Details routes
 	r.Route("/api/inventory-details", func(r chi.Router) {
+		r.Use(auth.Auth)
 		r.Get("/{id}", inventoryDetailController.FindInventoryDetailById)
 		r.Post("/stock-change", inventoryDetailController.ChangeStock)
 

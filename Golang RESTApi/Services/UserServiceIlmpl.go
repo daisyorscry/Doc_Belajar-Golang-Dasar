@@ -1,7 +1,9 @@
 package services
 
 import (
+	auth "RESTApi/Auth"
 	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	entity "RESTApi/Models/Entity"
 	repository "RESTApi/Models/Repository"
 	requests "RESTApi/Models/Requests"
@@ -33,17 +35,15 @@ func (s *UserServiceImpl) FindById(ctx context.Context, id int) (responses.UserR
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
+		return responses.UserResponse{}, exception.ServiceErr(err, "error begin transacton", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
-	// Cari user berdasarkan ID
 	user, err := s.UserRepository.FindById(ctx, tx, id)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error finding user by id")
+		return responses.UserResponse{}, exception.ServiceErr(err, "user not found", "not_found")
 	}
 
-	// Kembalikan respon
 	return helper.HandleUserResponse(user), nil
 }
 
@@ -51,14 +51,14 @@ func (s *UserServiceImpl) FindByUsername(ctx context.Context, username string) (
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
+		return responses.UserResponse{}, exception.ServiceErr(err, "error begin transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
 	// Cari user berdasarkan username
 	user, err := s.UserRepository.FindByUsername(ctx, tx, username)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error finding user by username")
+		return responses.UserResponse{}, exception.ServiceErr(err, "user not found", "not_found")
 	}
 
 	// Kembalikan respon
@@ -69,31 +69,31 @@ func (s *UserServiceImpl) Login(ctx context.Context, request requests.UserLoginR
 	// Validasi input request
 	err := s.Validate.Struct(request)
 	if err != nil {
-		return responses.UserResponse{}, "", helper.ServiceErr(err, "invalid login request")
+		return responses.UserResponse{}, "", exception.ServiceErr(err, "invalid request", "validation_error")
 	}
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
-		return responses.UserResponse{}, "", helper.ServiceErr(err, "error beginning transaction")
+		return responses.UserResponse{}, "", exception.ServiceErr(err, "error begin transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
 	// Ambil data user berdasarkan username
 	user, err := s.UserRepository.FindByUsername(ctx, tx, request.Username)
 	if err != nil {
-		return responses.UserResponse{}, "", helper.ServiceErr(err, "error during login")
+		return responses.UserResponse{}, "", exception.ServiceErr(err, "invalid username or password", "validation_error")
 	}
 
 	// Verifikasi password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password))
 	if err != nil {
-		return responses.UserResponse{}, "", helper.ServiceErr(err, "invalid username or password")
+		return responses.UserResponse{}, "", exception.ServiceErr(err, "invalid username or password", "validation_error")
 	}
 
 	// Generate JWT token
-	token, err := helper.GenerateJWT(user.Id, user.Username)
+	token, err := auth.GenerateJWT(user.Id, user.Username)
 	if err != nil {
-		return responses.UserResponse{}, "", helper.ServiceErr(err, "error generating JWT")
+		return responses.UserResponse{}, "", exception.ServiceErr(err, "invalid username or password", "forbidden")
 	}
 
 	// Kembalikan respon dan token
@@ -104,18 +104,18 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 	// Validasi input request
 	err := s.Validate.Struct(request)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error validating request")
+		return responses.UserResponse{}, exception.ServiceErr(err, "invalid request", "validation_error")
 	}
 
 	// Hashing password sebelum menyimpan ke database
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error hashing password")
+		return responses.UserResponse{}, exception.ServiceErr(err, "invalid username or password", "forbidden")
 	}
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerQuery())
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
+		return responses.UserResponse{}, exception.ServiceErr(err, "error begin transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
@@ -130,7 +130,7 @@ func (s *UserServiceImpl) Register(ctx context.Context, request requests.UserReg
 	// send entitiy user to repository
 	user, err = s.UserRepository.Register(ctx, tx, user)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error during registration")
+		return responses.UserResponse{}, exception.RepositoryErr(err, "failed registration user", "validation_error")
 	}
 
 	// return response
@@ -143,25 +143,25 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 	// Get the ID data that will be updated in the context value sent from JWT
 	userId, ok := ctx.Value("userId").(int)
 	if !ok {
-		return responses.UserResponse{}, fmt.Errorf("user ID not found in context")
+		return responses.UserResponse{}, exception.ServiceErr(fmt.Errorf("user ID not found"), "user ID not found in context", "unauthorized")
 	}
 
 	// validasi input request
 	err := s.Validate.Struct(request)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "invalid update request")
+		return responses.UserResponse{}, exception.ServiceErr(err, "invalid request", "validation_error")
 	}
 
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error beginning transaction")
+		return responses.UserResponse{}, exception.ServiceErr(err, "error begin transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
 	// send id to repository find by id
 	user, err := s.UserRepository.FindById(ctx, tx, userId)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "user not found")
+		return responses.UserResponse{}, exception.ServiceErr(err, "user not found", "not_found")
 	}
 
 	// set request to entity user
@@ -177,7 +177,7 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 	if request.Password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 		if err != nil {
-			return responses.UserResponse{}, helper.ServiceErr(err, "error hashing password")
+			return responses.UserResponse{}, exception.ServiceErr(err, "update user failed", "database_error")
 		}
 		user.Password = string(hashedPassword)
 	}
@@ -185,7 +185,7 @@ func (s *UserServiceImpl) Update(ctx context.Context, request requests.UserUpdat
 	// sent entity user to repository update
 	updatedUser, err := s.UserRepository.Update(ctx, tx, user)
 	if err != nil {
-		return responses.UserResponse{}, helper.ServiceErr(err, "error updating user")
+		return responses.UserResponse{}, exception.ServiceErr(err, "update user failed", "database_error")
 	}
 
 	// return response

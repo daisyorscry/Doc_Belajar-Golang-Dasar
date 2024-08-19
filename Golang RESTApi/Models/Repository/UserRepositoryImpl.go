@@ -1,7 +1,7 @@
 package repository
 
 import (
-	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	entity "RESTApi/Models/Entity"
 	"context"
 	"database/sql"
@@ -22,9 +22,9 @@ func (r *UserRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, userId in
 	err := tx.QueryRowContext(ctx, SQL, userId).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return entity.User{}, helper.RepositoryErr(err, "user not found")
+			return entity.User{}, exception.RepositoryErr(err, "user not found", "not_found")
 		}
-		return entity.User{}, helper.RepositoryErr(err, "error finding user by id")
+		return entity.User{}, exception.RepositoryErr(err, "user not found", "not_found")
 	}
 
 	return user, nil
@@ -37,9 +37,9 @@ func (r *UserRepositoryImpl) FindByUsername(ctx context.Context, tx *sql.Tx, use
 	err := tx.QueryRowContext(ctx, SQL, username).Scan(&user.Id, &user.Username, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return entity.User{}, helper.RepositoryErr(err, "user not found")
+			return entity.User{}, exception.RepositoryErr(err, "user not found", "not_found")
 		}
-		return entity.User{}, helper.RepositoryErr(err, "error finding user by username")
+		return entity.User{}, exception.RepositoryErr(err, "user not found", "not_found")
 	}
 
 	return user, nil
@@ -52,9 +52,9 @@ func (r *UserRepositoryImpl) Login(ctx context.Context, tx *sql.Tx, user entity.
 	err := tx.QueryRowContext(ctx, SQL, user.Username, user.Password).Scan(&loggedInUser.Id, &loggedInUser.Username, &loggedInUser.Email, &loggedInUser.CreatedAt, &loggedInUser.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return entity.User{}, helper.RepositoryErr(err, "invalid username or password")
+			return entity.User{}, exception.RepositoryErr(err, "invalid username or password", "validation_error")
 		}
-		return entity.User{}, helper.RepositoryErr(err, "error during login")
+		return entity.User{}, exception.RepositoryErr(err, "invalid username or password", "validation_error")
 	}
 
 	return loggedInUser, nil
@@ -66,7 +66,7 @@ func (r *UserRepositoryImpl) Register(ctx context.Context, tx *sql.Tx, user enti
 	var id int
 	err := tx.QueryRowContext(ctx, SQL, user.Username, user.Email, user.Password).Scan(&id)
 	if err != nil {
-		return entity.User{}, helper.RepositoryErr(err, "error during registration")
+		return entity.User{}, exception.RepositoryErr(err, "failed registration user", "validation_error")
 	}
 
 	user.Id = id
@@ -80,7 +80,7 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, tx *sql.Tx, user entity
 		&user.Id, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
-		return entity.User{}, helper.RepositoryErr(err, "error updating user")
+		return entity.User{}, exception.RepositoryErr(err, "failed updating user", "validation_error")
 	}
 
 	return user, nil

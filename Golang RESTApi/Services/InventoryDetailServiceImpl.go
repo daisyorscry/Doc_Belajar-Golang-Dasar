@@ -2,6 +2,7 @@ package services
 
 import (
 	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	repository "RESTApi/Models/Repository"
 	requests "RESTApi/Models/Requests"
 	responses "RESTApi/Models/Responses"
@@ -9,19 +10,23 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 type InventoryDetailServiceImpl struct {
 	RepoInventoryDetails repository.InventoryDetailRepository
 	RepoInventoryProduct repository.InventoryProductRepository
 	DB                   *sql.DB
+	RedisClient          *redis.Client
 }
 
-func NewInventoryDetailService(repoDetails repository.InventoryDetailRepository, repoInventoryProduct repository.InventoryProductRepository, db *sql.DB) InventoryDetailService {
+func NewInventoryDetailService(repoDetails repository.InventoryDetailRepository, repoInventoryProduct repository.InventoryProductRepository, db *sql.DB, redis *redis.Client) InventoryDetailService {
 	return &InventoryDetailServiceImpl{
 		RepoInventoryDetails: repoDetails,
 		RepoInventoryProduct: repoInventoryProduct,
 		DB:                   db,
+		RedisClient:          redis,
 	}
 }
 
@@ -30,24 +35,24 @@ func NewInventoryDetailService(repoDetails repository.InventoryDetailRepository,
 // func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
 // 	tx, err := s.DB.BeginTx(ctx, nil)
 // 	if err != nil {
-// 		return helper.ServiceErr(err, "error starting transaction")
+// 		return exception.ServiceErr(err, "error beginning transaction", "database_error")
 // 	}
 // 	defer helper.TxHandler(tx, err)
 
 // 	lockId := request.ProductId // Use productId as lock identifier
 // 	_, err = s.Repo.AcquireAdvisoryLock(ctx, tx, lockId)
 // 	if err != nil {
-// 		return helper.ServiceErr(err, "error acquiring advisory lock")
+// 		return exception.ServiceErr(err, "error acquiring advisory lock")
 // 	}
 
 // 	inventoryId, err := s.Repo.FindInventoryByProductId(ctx, tx, request.ProductId)
 // 	if err != nil {
-// 		return helper.ServiceErr(err, "error fetching inventory by product_id")
+// 		return exception.ServiceErr(err, "error fetching inventory by product_id")
 // 	}
 
 // 	details, err := s.Repo.FindByInventoryId(ctx, tx, inventoryId)
 // 	if err != nil {
-// 		return helper.ServiceErr(err, "error fetching inventory details by inventory_id")
+// 		return exception.ServiceErr(err, "error fetching inventory details by inventory_id")
 // 	}
 
 // 	details.Stock += request.Change
@@ -66,35 +71,54 @@ func NewInventoryDetailService(repoDetails repository.InventoryDetailRepository,
 
 // 	_, err = s.Repo.UpdateStock(ctx, tx, details)
 // 	if err != nil {
-// 		return helper.ServiceErr(err, "error updating stock and status")
+// 		return exception.ServiceErr(err, "error updating stock and status")
 // 	}
 
 // 	return nil
 // }
 
 func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request requests.StockChangeRequest) error {
+
+	// locking database
+	lockKey := fmt.Sprintf("lock:product:%d", request.ProductId)
+	lock, err := s.RedisClient.SetNX(lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return exception.ServiceErr(err, "error acquiring lock", "database_error")
+	}
+
+	if !lock {
+		return exception.ServiceErr(fmt.Errorf("unable to acquire lock"), "operation already in progress", "database_error")
+	}
+
+	defer s.RedisClient.Del(lockKey)
+
+	// Begin Transaction
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return helper.ServiceErr(err, "error starting transaction")
+		return exception.ServiceErr(err, "error beginning transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
+	// Find Inventory By Product ID
 	inventoryId, err := s.RepoInventoryProduct.FindInventoryByProductId(ctx, tx, request.ProductId)
 	if err != nil {
-		return helper.ServiceErr(err, "error fetching inventory by product_ids")
+		return exception.ServiceErr(err, "product not found", "not_found")
 	}
 	time.Sleep(100 * time.Millisecond)
 
+	// Find Inventory Details By Inventory ID
 	details, err := s.RepoInventoryDetails.FindByInventoryId(ctx, tx, inventoryId)
 	if err != nil {
-		return helper.ServiceErr(err, "error fetching inventory details by inventory_id")
+		return exception.ServiceErr(err, "inventory product not found", "not_found")
 	}
 
+	// Update Stock
 	details.Stock = details.Stock + request.Change
 	if details.Stock < 0 {
-		return fmt.Errorf("insufficient stock: available stock is %d", details.Stock)
+		return exception.ServiceErr(fmt.Errorf("insufficient stock: available stock is %d", details.Stock), "insufficient stock", "validation_error")
 	}
 
+	// Update Status
 	switch {
 	case details.Stock == 0:
 		details.Status = "LOST"
@@ -104,9 +128,10 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 		details.Status = "AVAILABLE"
 	}
 
+	// Update Stock in Database
 	_, err = s.RepoInventoryDetails.UpdateStock(ctx, tx, details)
 	if err != nil {
-		return helper.ServiceErr(err, "error updating stock and status")
+		return exception.ServiceErr(err, "failed updating stock product", "database_error")
 	}
 
 	return nil
@@ -115,13 +140,13 @@ func (s *InventoryDetailServiceImpl) ChangeStock(ctx context.Context, request re
 func (s *InventoryDetailServiceImpl) FindInventoryDetailById(ctx context.Context, id int) (responses.InventoryDetailResponse, error) {
 	tx, err := s.DB.BeginTx(ctx, helper.BeginTxHandlerExec())
 	if err != nil {
-		return responses.InventoryDetailResponse{}, helper.ServiceErr(err, "error begin transaction")
+		return responses.InventoryDetailResponse{}, exception.ServiceErr(err, "error beginning transaction", "database_error")
 	}
 	defer helper.TxHandler(tx, err)
 
 	detail, err := s.RepoInventoryDetails.FindByInventoryId(ctx, tx, id)
 	if err != nil {
-		return responses.InventoryDetailResponse{}, err
+		return responses.InventoryDetailResponse{}, exception.ServiceErr(err, "inventory product detail not found", "not_found")
 	}
 
 	return helper.HandleInventoryDetail(detail), nil

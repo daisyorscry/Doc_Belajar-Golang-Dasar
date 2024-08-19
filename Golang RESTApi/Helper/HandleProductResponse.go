@@ -5,12 +5,12 @@ import (
 	responses "RESTApi/Models/Responses"
 )
 
-func HandleProductResponse(product entity.Product) responses.ProductRespon {
+func HandleProductResponse(product entity.Product, user entity.User) responses.ProductRespon {
 	return responses.ProductRespon{
 		Id:          product.Id,
 		ProductName: product.ProductName,
 		ProductDesc: product.ProductDesc,
-		CreateBy:    product.CreateBy,
+		CreateBy:    user.Username,
 		CreatedAt:   product.CreatedAt,
 	}
 }

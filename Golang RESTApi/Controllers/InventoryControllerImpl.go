@@ -2,6 +2,7 @@ package controllers
 
 import (
 	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	requests "RESTApi/Models/Requests"
 	services "RESTApi/Services"
 	"encoding/json"
@@ -22,13 +23,13 @@ func NewInventoryProductController(s services.InventoryProductService) *Inventor
 func (c *InventoryProductControllerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	var request requests.CreateInventoryProductRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", "invalid request payload")
+		exception.Exception(w, err)
 		return
 	}
 
 	newProduct, err := c.Service.Create(r.Context(), request)
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusInternalServerError, "something wrong", err.Error())
+		exception.Exception(w, err)
 		return
 	}
 
@@ -38,13 +39,13 @@ func (c *InventoryProductControllerImpl) Create(w http.ResponseWriter, r *http.R
 func (c *InventoryProductControllerImpl) FindById(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", "invalid  request payload")
+		exception.Exception(w, err)
 		return
 	}
 
 	product, err := c.Service.FindById(r.Context(), id)
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusInternalServerError, "something wring", err.Error())
+		exception.Exception(w, err)
 
 		return
 	}
@@ -55,7 +56,7 @@ func (c *InventoryProductControllerImpl) FindById(w http.ResponseWriter, r *http
 func (c *InventoryProductControllerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
 	products, err := c.Service.FindAll(r.Context())
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", err.Error())
+		exception.Exception(w, err)
 		return
 	}
 
@@ -71,7 +72,7 @@ func (c *InventoryProductControllerImpl) Delete(w http.ResponseWriter, r *http.R
 	}
 
 	if err := c.Service.Delete(r.Context(), id); err != nil {
-		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", err.Error())
+		exception.Exception(w, err)
 		return
 	}
 

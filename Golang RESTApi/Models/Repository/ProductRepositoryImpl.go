@@ -1,10 +1,11 @@
 package repository
 
 import (
-	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	entity "RESTApi/Models/Entity"
 	"context"
 	"database/sql"
+	"log"
 )
 
 type ProductRepositoryImpl struct{}
@@ -13,14 +14,16 @@ func NewProductRepository() ProductRepository {
 	return &ProductRepositoryImpl{}
 }
 
-func (r *ProductRepositoryImpl) Save(ctx context.Context, tx *sql.Tx, product entity.Product) (entity.Product, error) {
-	SQL := "INSERT INTO product (productname, productdesc) VALUES ($1, $2) RETURNING id"
+func (r *ProductRepositoryImpl) Save(ctx context.Context, tx *sql.Tx, product entity.Product, userId int) (entity.Product, error) {
+	SQL := "INSERT INTO product (productname, productdesc, user_id) VALUES ($1, $2, $3) RETURNING id"
 
 	var id int64
-	err := tx.QueryRowContext(ctx, SQL, product.ProductName, product.ProductDesc).Scan(&id)
+	err := tx.QueryRowContext(ctx, SQL, product.ProductName, product.ProductDesc, userId).Scan(&id)
 	if err != nil {
-		return entity.Product{}, helper.RepositoryErr(err, "error create product")
+		return entity.Product{}, exception.RepositoryErr(err, "failed create product", "database_error")
 	}
+
+	log.Println(product.UserId)
 
 	product.Id = id
 	return product, nil
@@ -32,7 +35,7 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, tx *sql.Tx, product 
 	var id int
 	err := tx.QueryRowContext(ctx, SQL, product.ProductName, product.ProductDesc, product.Id).Scan(&id)
 	if err != nil {
-		return entity.Product{}, helper.RepositoryErr(err, "error updating product")
+		return entity.Product{}, exception.RepositoryErr(err, "failed updating product", "database_error")
 	}
 
 	product.Id = int64(id)
@@ -44,7 +47,7 @@ func (r *ProductRepositoryImpl) Delete(ctx context.Context, tx *sql.Tx, product 
 
 	_, err := tx.ExecContext(ctx, SQL, product.Id)
 	if err != nil {
-		return helper.RepositoryErr(err, "error deleting product")
+		return exception.RepositoryErr(err, "failed delete product", "database_error")
 	}
 	return nil
 }
@@ -76,7 +79,7 @@ func (r *ProductRepositoryImpl) FindById(ctx context.Context, tx *sql.Tx, produc
 		&product.CreateBy,
 	)
 	if err != nil {
-		return entity.Product{}, helper.RepositoryErr(err, "error finding product by id")
+		return entity.Product{}, exception.RepositoryErr(err, "product not found", "not_found")
 	}
 
 	return product, nil
@@ -100,7 +103,7 @@ func (r *ProductRepositoryImpl) FindAll(ctx context.Context, tx *sql.Tx) ([]enti
 
 	result, err := tx.QueryContext(ctx, SQL)
 	if err != nil {
-		return nil, helper.RepositoryErr(err, "error finding all products")
+		return nil, exception.RepositoryErr(err, "failed get product", "database_error")
 	}
 	defer result.Close()
 
@@ -116,7 +119,7 @@ func (r *ProductRepositoryImpl) FindAll(ctx context.Context, tx *sql.Tx) ([]enti
 			&product.CreatedAt,
 		)
 		if err != nil {
-			return nil, helper.RepositoryErr(err, "error scanning products and users")
+			return nil, exception.RepositoryErr(err, "failed get product", "database_error")
 		}
 
 		products = append(products, product)

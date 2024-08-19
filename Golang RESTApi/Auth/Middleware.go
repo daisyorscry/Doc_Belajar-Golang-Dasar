@@ -1,6 +1,7 @@
-package middleware
+package auth
 
 import (
+	exception "RESTApi/Helper/Exception"
 	"context"
 	"fmt"
 	"net/http"
@@ -15,13 +16,14 @@ func JWTAuthentication(next http.Handler) http.Handler {
 
 		// Token is usually sent as "Bearer <token>", so we split it
 		if tokenHeader == "" {
-			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			exception.ServiceErr(fmt.Errorf("redirect"), "redirect to login", "unauthorized")
 			return
 		}
 
 		splitted := strings.Split(tokenHeader, " ")
 		if len(splitted) != 2 {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			exception.ServiceErr(fmt.Errorf("redirect"), "redirect to login", "unauthorized")
+
 			return
 		}
 
@@ -35,7 +37,8 @@ func JWTAuthentication(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			exception.ServiceErr(fmt.Errorf("redirect"), "redirect to login", "unauthorized")
+
 			return
 		}
 
@@ -45,7 +48,8 @@ func JWTAuthentication(next http.Handler) http.Handler {
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		} else {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			exception.ServiceErr(fmt.Errorf("redirect"), "redirect to login", "unauthorized")
+
 			return
 		}
 	})

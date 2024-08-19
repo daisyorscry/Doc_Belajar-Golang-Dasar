@@ -1,6 +1,7 @@
-package helper
+package auth
 
 import (
+	helper "RESTApi/Helper"
 	"context"
 	"net/http"
 	"strings"
@@ -8,18 +9,20 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func JWTAuthentication(next http.Handler) http.Handler {
+func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenHeader := r.Header.Get("x-api-token")
 
 		if tokenHeader == "" {
-			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			helper.WriteJsonResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", "")
+
 			return
 		}
 
 		splitted := strings.Split(tokenHeader, " ")
 		if len(splitted) != 2 || splitted[0] != "Bearer" {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			helper.WriteJsonResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", "")
+
 			return
 		}
 
@@ -33,13 +36,15 @@ func JWTAuthentication(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			helper.WriteJsonResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", "")
+
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
-			http.Error(w, "Invalid/Malformed auth token", http.StatusUnauthorized)
+			helper.WriteJsonResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", "")
+
 			return
 		}
 

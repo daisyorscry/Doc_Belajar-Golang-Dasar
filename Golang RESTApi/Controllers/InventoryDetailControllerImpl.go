@@ -2,6 +2,7 @@ package controllers
 
 import (
 	helper "RESTApi/Helper"
+	exception "RESTApi/Helper/Exception"
 	requests "RESTApi/Models/Requests"
 	services "RESTApi/Services"
 	"encoding/json"
@@ -27,13 +28,13 @@ func (c *InventoryDetailControllerImpl) ChangeStock(w http.ResponseWriter, r *ht
 	var request requests.StockChangeRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		exception.Exception(w, err)
 		return
 	}
 
 	err = c.Service.ChangeStock(r.Context(), request)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		exception.Exception(w, err)
 		return
 	}
 
@@ -45,14 +46,13 @@ func (c *InventoryDetailControllerImpl) ChangeStock(w http.ResponseWriter, r *ht
 func (c *InventoryDetailControllerImpl) FindInventoryDetailById(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusBadRequest, "BAD REQUEST", "invalid  request payload")
+		exception.Exception(w, err)
 		return
 	}
 
 	product, err := c.Service.FindInventoryDetailById(r.Context(), id)
 	if err != nil {
-		helper.WriteJsonResponse(w, http.StatusInternalServerError, "something wring", err.Error())
-
+		exception.Exception(w, err)
 		return
 	}
 	helper.WriteJsonResponse(w, http.StatusOK, "OK", product)
