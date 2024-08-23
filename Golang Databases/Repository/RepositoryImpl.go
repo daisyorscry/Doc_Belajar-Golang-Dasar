@@ -49,7 +49,7 @@ func (r *UserRepository) Update(ctx context.Context, user model.Users) (model.Us
 	if err != nil {
 		return model.Users{}, err
 	}
-
+		
 	defer func() {
 		if err != nil {
 			if rerr := tx.Rollback(); rerr != nil {
@@ -213,3 +213,6 @@ func (r *UserRepository) Delete(ctx context.Context, id int64) (bool, error) {
 	return true, nil
 
 }
+
+
+// teesting
