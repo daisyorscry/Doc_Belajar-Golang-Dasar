@@ -14,7 +14,9 @@ func main() {
 	name, age := seviceBuildName("name1", 12)
 	name1, age1 := seviceBuildName("name2", 13)
 
-	service.Yourname(name, age)
+	// service.Yourname(address.NameAddressParam)
+	// service.Yourname(address.NoParam)
+	// service.Yourname(address.BlokParam)
 	service.Yourname(name1, age1)
 
 	_ = database.InitMysql()
@@ -33,6 +35,17 @@ func seviceBuildName(nameParam string, ageParam int) (string, int) {
 	age := ageParam
 
 	return name, age
+}
+
+// buildAddress
+// jl: alamatParam No.NoParam Blok BlokParam
+// result : jl. mekar indah 3 No 22 Blok 1
+//
+
+type Address struct {
+	NameAddressParam string
+	NoParam          int
+	BlokParam        int
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
